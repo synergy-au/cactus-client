@@ -240,6 +240,11 @@ async def action_upsert_mup(
             MirrorUsagePoint, step, context, HTTPMethod.POST, list_href, request_mup
         )
 
+        # WARNING: BRIDGE APPLIED - JCrowley 14/1/2026
+        inserted_mup.mirrorMeterReadings = []
+        inserted_mup.mirrorMeterReadings.extend(request_mup.mirrorMeterReadings or [])
+        # ====== END BRIDGE ======
+
         upserted_sr = resource_store.upsert_resource(
             CSIPAusResource.MirrorUsagePoint, mup_list_resources[0].id, inserted_mup
         )
