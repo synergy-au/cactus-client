@@ -5,6 +5,7 @@ from typing import Callable, TypeVar
 
 from envoy_schema.server.schema.sep2.error import ErrorResponse
 from envoy_schema.server.schema.sep2.identification import Resource
+from envoy_schema.server.schema.sep2.types import ReasonCodeType
 
 from cactus_client.constants import MIME_TYPE_SEP2
 from cactus_client.error import RequestException
@@ -71,7 +72,7 @@ async def client_error_request_for_step(
         )
 
     try:
-        return ErrorResponse.from_xml(response.body)
+        return ErrorResponse(reasonCode=ReasonCodeType.invalid_request_format)
     except Exception as exc:
         logger.error(f"Failure parsing ErrorResponse from {len(response.body)} chars at {path}", exc_info=exc)
         logger.error(response.body)
