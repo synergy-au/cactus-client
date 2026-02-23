@@ -33,8 +33,8 @@ dynamic = ["version", "readme"]
 description = "Tools for evaluating a CSIP Aus server implementation via a virtual client"
 dependencies = [
     "cactus-test-definitions @ git+https://github.com/synergy-au/cactus-test-definitions.git@test/itron-bridges",
-    "cactus-schema>=0.0.4",
-    "envoy_schema @ git+https://github.com/synergy-au/envoy-schema.git@v0.31.0-storage.0.6.0",
+    "cactus-schema>=0.0.11",
+    "envoy_schema @ git+https://github.com/synergy-au/envoy-schema.git@v0.31.1-storage.0.6.0",
     "rich>=14.1.0,<15",
     "treelib>=1.8.0,<2",
     "aiohttp>=3.11.12,<4",

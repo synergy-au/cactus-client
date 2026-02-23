@@ -62,7 +62,7 @@ def generate_upsert_mup_request(
 
     mmrs: list[MirrorMeterReading] = []
     for rt in reading_types:
-        (uom, kind, dq) = generate_reading_type_values(rt)
+        uom, kind, dq = generate_reading_type_values(rt)
         mmr_mrid = mrids.mmr_mrids[rt]
 
         mmrs.append(
@@ -96,7 +96,7 @@ def generate_insert_readings_request(
     step: StepExecution,
     context: ExecutionContext,
     mup_mrid: str,
-    reading_values: dict[CSIPAusReadingType, list[float]],
+    reading_values: dict[CSIPAusReadingType, list[float] | float],
     pow10_by_mrid: dict[str, int],
     post_rate_seconds: int,
 ) -> MirrorMeterReadingListRequest:
@@ -114,7 +114,10 @@ def generate_insert_readings_request(
             logger.error(f"Couldn't find {mmr_mrid} in pow10_by_mrid: {pow10_by_mrid}")
             raise CactusClientException(f"Couldn't find the pow10 multiplier for MirrorMeterReading {mmr_mrid}")
 
-        raw_value = rt_values[step.repeat_number]
+        if isinstance(rt_values, list):
+            raw_value = rt_values[step.repeat_number]
+        else:
+            raw_value = rt_values
         mmrs.append(
             MirrorMeterReading(
                 mRID=mmr_mrid,
@@ -132,17 +135,26 @@ async def action_insert_readings(
     resolved_parameters: dict[str, Any], step: StepExecution, context: ExecutionContext
 ) -> ActionResult:
     mup_id: str = resolved_parameters["mup_id"]  # mandatory param
-    values: dict[CSIPAusReadingType, list[float]] = resolved_parameters["values"]
+    values: dict[CSIPAusReadingType, list[float] | float] = resolved_parameters["values"]
     expect_rejection: bool = resolved_parameters.get("expect_rejection", False)
 
     # sanity check our values are well formed
-    all_value_lengths = [len(value_list) for value_list in values.values()]
-    if len(set(all_value_lengths)) != 1:
+    list_lengths: set[int] = set()
+    total_constants = 0
+    all_lengths: int | None = None
+    for list_or_constant in values.values():
+        if isinstance(list_or_constant, list):
+            list_lengths.add(len(list_or_constant))
+        else:
+            total_constants += 1
+    if len(list_lengths) > 1:
         logger.error(f"values parameter is malformed. Not every length is the same: {values}")
         raise CactusClientException("The values parameters is malformed. This is a test definition error.")
-    if step.repeat_number >= all_value_lengths[0]:
-        logger.error(f"Too many repeats - at repeat {step.repeat_number} but only has {all_value_lengths[0]}")
-        raise CactusClientException("The values parameters is malformed. This is a test definition error.")
+    elif len(list_lengths) == 1:
+        all_lengths = list_lengths.pop()
+        if step.repeat_number >= all_lengths:
+            logger.error(f"Too many repeats - at repeat {step.repeat_number} but only has {all_lengths}")
+            raise CactusClientException("The values parameters is malformed. This is a test definition error.")
 
     resource_store = context.discovered_resources(step)
     mups_with_id = [
@@ -192,14 +204,14 @@ async def action_insert_readings(
             raise RequestException(f"Received {response.status} from POST {mup_href} when submitting readings")
 
     # Repeat if we have more readings to send
-    if step.repeat_number >= (all_value_lengths[0] - 1):
+    if all_lengths is None or step.repeat_number >= (all_lengths - 1):
         return ActionResult.done()
     else:
         # If we get delayed (eg slow server or being blocked by a precondition) we don't want to send
         # all of our readings in a quick burst - we always want to have a minimum wait period
         next_reading_time = calculate_reading_time(context, post_rate_seconds, step.repeat_number + 1)
-        minimum_wait = utc_now() + timedelta(seconds=60)
-        return ActionResult(True, max(next_reading_time, minimum_wait))
+        minimum_wait = utc_now() + timedelta(seconds=post_rate_seconds)
+        return ActionResult(completed=True, repeat=True, not_before=max(next_reading_time, minimum_wait))
 
 
 async def action_upsert_mup(
@@ -235,15 +247,18 @@ async def action_upsert_mup(
             step, context, list_href, HTTPMethod.POST, resource_to_sep2_xml(request_mup)
         )
     else:
-        # Otherwise insert and refetch the returned EndDevice
+        # Otherwise insert and refetch the returned MirrorUsagePoint
         inserted_mup = await submit_and_refetch_resource_for_step(
             MirrorUsagePoint, step, context, HTTPMethod.POST, list_href, request_mup
         )
 
-        # WARNING: BRIDGE APPLIED - JCrowley 14/1/2026
-        inserted_mup.mirrorMeterReadings = []
-        inserted_mup.mirrorMeterReadings.extend(request_mup.mirrorMeterReadings or [])
-        # ====== END BRIDGE ======
+        # BRIDGE: The server returns MUP without mirrorMeterReadings (they're not exposed via GET). (TODO)
+        # We copy them from our request so that:
+        #   1. action_insert_readings can extract pow10_multiplier for formatting readings
+        #   2. check_mirror_usage_point can validate MMR structure
+        # This is a workaround - ideally we'd store pow10_multiplier in annotations and remove
+        # the MMR validation from checks (since we're just validating what we constructed).
+        inserted_mup.mirrorMeterReadings = list(request_mup.mirrorMeterReadings or [])
 
         upserted_sr = resource_store.upsert_resource(
             CSIPAusResource.MirrorUsagePoint, mup_list_resources[0].id, inserted_mup

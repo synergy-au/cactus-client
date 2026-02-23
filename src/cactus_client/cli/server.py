@@ -30,6 +30,8 @@ class ServerConfigKey(StrEnum):
     VERIFY_HOST = auto()
     SERCA = auto()
     NOTIFICATION = auto()
+    PEN = auto()
+    REFETCH_DELAY = auto()
 
 
 def add_sub_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -78,6 +80,10 @@ def update_server_key(
                 if parsed.scheme not in {"http", "https"} or not parsed.netloc:
                     raise ValueError(f"{new_value} doesn't appear to be a valid URI. Got: {parsed}")
                 return replace(server, notification_uri=new_value)
+            case ServerConfigKey.PEN:
+                return replace(server, pen=int(new_value))
+            case ServerConfigKey.REFETCH_DELAY:
+                return replace(server, refetch_delay_ms=int(new_value))
             case _:
                 console.print(f"[b]{config_key}[/b] can't be updated", style="red")
                 sys.exit(1)
@@ -98,6 +104,8 @@ def print_server(console: Console, config: GlobalConfig) -> None:
     verify_host = config.server.verify_host_name if config.server else None
     serca_pem_file = config.server.serca_pem_file if config.server else None
     notification = config.server.notification_uri if config.server else None
+    pen = config.server.pen if config.server else 0
+    refetch_delay_ms = config.server.refetch_delay_ms if config.server else 0
 
     table.add_row(
         "dcap",
@@ -124,6 +132,17 @@ def print_server(console: Console, config: GlobalConfig) -> None:
         notification if notification else "[b red]null[/b red]",
         "URI to the [b]cactus-client-notifications[/b] server instance that will implement webhooks for"
         + " subscription/notification tests. eg: https://cactus.cecs.anu.edu.au/client-notifications/",
+    )
+    table.add_row(
+        "pen",
+        str(pen) if pen else "[b red]0[/b red]",
+        "[b]Private Enterprise Number[/b] for the server. This will used when validating server generated mRID's.",
+    )
+    table.add_row(
+        "refetch_delay",
+        f"{refetch_delay_ms}ms" if refetch_delay_ms else "None",
+        "Delay (in milliseconds) that the client will apply between submitting a 'write' request and then fetching"
+        + " the updated value.",
     )
     console.print(table)
 

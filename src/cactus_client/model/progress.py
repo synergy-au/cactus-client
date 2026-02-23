@@ -7,6 +7,7 @@ from cactus_test_definitions.server.test_procedures import Step
 
 from cactus_client.model.execution import ActionResult, CheckResult, StepExecution
 from cactus_client.model.http import NotificationRequest, ServerRequest, ServerResponse
+from cactus_client.model.resource import StoredResource
 from cactus_client.time import relative_time, utc_now
 
 logger = logging.getLogger(__name__)
@@ -15,8 +16,24 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class LogEntry:
     message: str  # The log entry
-    step_execution: StepExecution  # The step execution that generated this log entry
+
+    # The step execution that generated this log entry (None if stored_resource is set)
+    step_execution: StepExecution | None
+
+    # The specific resource that generated this log entry (None if step_execution is set)
+    stored_resource: StoredResource | None
+
     created_at: datetime = field(default_factory=utc_now, init=False)
+
+    def source_id(self) -> str:
+        """Returns a short descriptive ID to uniquely identify the source of this log entry"""
+        if self.step_execution is not None:
+            return self.step_execution.source.id
+
+        if self.stored_resource is not None:
+            return self.stored_resource.id.href()
+
+        return "???"
 
 
 class WarningTracker:
@@ -28,18 +45,19 @@ class WarningTracker:
     def __init__(self) -> None:
         self.warnings = []
 
-    # def log_resource_warning(self, type: CSIPAusResource, message: str) -> None:
-    #     """Log an warning about a specific type of CSIPAusResource"""
-    #     warning = f"Resource {type}: {message}"
-    #     self.warnings.append(warning)
-    #     logger.warning(warning)
+    def log_stored_resource_warning(self, stored_resource: StoredResource, message: str) -> None:
+        """Log a warning about a specific stored resource"""
+        log_entry = LogEntry(message=message, step_execution=None, stored_resource=stored_resource)
+        self.warnings.append(LogEntry(message=message, step_execution=None, stored_resource=stored_resource))
+        logger.warning(f"{log_entry.source_id()}: {message}")
 
     def log_step_warning(self, step_execution: StepExecution, message: str) -> None:
         """Log a warning about a specific execution step"""
-        self.warnings.append(LogEntry(message, step_execution))
+        log_entry = LogEntry(message=message, step_execution=step_execution, stored_resource=None)
+        self.warnings.append(log_entry)
 
         logger.warning(
-            f"{step_execution.source.id}[{step_execution.repeat_number}] Attempt {step_execution.attempts}: {message}"
+            f"{log_entry.source_id()}[{step_execution.repeat_number}] Attempt {step_execution.attempts}: {message}"
         )
 
 
@@ -56,10 +74,11 @@ class StepExecutionCompletion:
     created_at: datetime = field(default_factory=utc_now, init=False)
 
     def is_success(self) -> bool:
-        """True if this execution represents a successful result (no exceptions and a passing check result)"""
+        """True if this execution represents a successful result (no exceptions, action completed, and checks passed)"""
         return (
             self.exc is None
             and self.action_result is not None
+            and self.action_result.completed
             and self.check_result is not None
             and self.check_result.passed
         )
@@ -120,9 +139,8 @@ class ProgressTracker:
 
     async def add_log(self, step_execution: StepExecution, message: str) -> None:
         """Adds a log entry for a specific StepExecution"""
-        log = LogEntry(message, step_execution)
-        step_id = step_execution.source.id
-        logger.info(f"{step_id}[{step_execution.repeat_number}] Attempt {step_execution.attempts}: {message}")
+        log = LogEntry(message=message, step_execution=step_execution, stored_resource=None)
+        logger.info(f"{log.source_id()}[{step_execution.repeat_number}] Attempt {step_execution.attempts}: {message}")
 
         self._update_progress(step_execution, lambda p: p.log_entries.append(log))
 
@@ -167,12 +185,22 @@ class ProgressTracker:
         else:
             await self.add_log(step_execution, f"Check Failure: {check_result.description}")
 
-    async def set_step_result(self, step_execution: StepExecution, check_result: CheckResult) -> None:
+    async def set_step_result(
+        self, step_execution: StepExecution, action_result: ActionResult, check_result: CheckResult
+    ) -> None:
         """Logs that a step execution is that LAST time the underlying step will run."""
 
-        result = StepResult(
-            step=step_execution.source, failure_result=None if check_result.passed else check_result, exc=None
-        )
+        step_passed = action_result.completed and check_result.passed
+        if step_passed:
+            failure_result = None
+        elif not action_result.completed:
+            # Action failed - create a synthetic CheckResult to record the failure
+            failure_result = CheckResult(passed=False, description=f"Action failed: {action_result.description}")
+        else:
+            # Check failed
+            failure_result = check_result
+
+        result = StepResult(step=step_execution.source, failure_result=failure_result, exc=None)
         self.all_results.append(result)
 
         def do_update(progress: StepProgress) -> None:
@@ -180,12 +208,11 @@ class ProgressTracker:
 
         self._update_progress(step_execution, do_update)
 
-        if check_result.passed:
+        if step_passed:
             await self.add_log(step_execution, f"{step_execution.source.id} has been marked as successful")
         else:
-            await self.add_log(
-                step_execution, f"{step_execution.source.id} has been marked as failed: {check_result.description}"
-            )
+            desc = failure_result.description if failure_result else ""  # Should not occur
+            await self.add_log(step_execution, f"{step_execution.source.id} has been marked as failed: {desc}")
 
 
 class ResponseTracker:
@@ -207,7 +234,8 @@ class ResponseTracker:
     async def clear_active_request(self) -> None:
         self.active_request = None
 
-    async def log_response_body(self, r: ServerResponse) -> None:
+    async def log_response_body(self, r: ServerResponse, client_alias: str) -> None:
+        r.client_alias = client_alias
         self.responses.append(r)
         logger.info(f"{r.method} {r.url} Yielded {r.status}: Received body of length {len(r.body)}.")
 
