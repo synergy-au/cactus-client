@@ -21,10 +21,19 @@ def check_der_program(
     resource_store = context.discovered_resources(step)
     all_der_programs = resource_store.get_for_type(CSIPAusResource.DERProgram)
 
-    # Get all FSAs to determine the index, sort FSAs by href for consistent ordering
+    # Sort FSAs by minimum DERProgram primacy so fsa_index is stable regardless of href format.
+    # (UUID hrefs don't sort in primacy order.) Href used as tie-breaker for equal primacies.
     if fsa_index is not None:
         all_fsas = resource_store.get_for_type(CSIPAusResource.FunctionSetAssignments)
-        sorted_fsas = sorted(all_fsas, key=lambda sr: sr.resource.href if sr.resource.href else "")
+        fsa_min_primacy: dict[Any, int] = {}
+        for derp_sr in all_der_programs:
+            parent_fsa = resource_store.get_ancestor_of(CSIPAusResource.FunctionSetAssignments, derp_sr.id)
+            if parent_fsa is not None:
+                derp_primacy_val = cast(DERProgramResponse, derp_sr.resource).primacy
+                existing = fsa_min_primacy.get(parent_fsa.id)
+                if existing is None or derp_primacy_val < existing:
+                    fsa_min_primacy[parent_fsa.id] = derp_primacy_val
+        sorted_fsas = sorted(all_fsas, key=lambda sr: (fsa_min_primacy.get(sr.id, 2**31), sr.resource.href or ""))
 
     # Perform filtering
     total_matches = 0
@@ -57,12 +66,14 @@ def check_der_program(
     # Check match criteria
     if minimum_count is not None and total_matches < minimum_count:
         return CheckResult(
-            False, f"Matched {total_matches} DERPrograms against criteria. Expected at least {minimum_count}"
+            False,
+            f"Matched {total_matches} DERPrograms against criteria. Expected at least {minimum_count}",
         )
 
     if maximum_count is not None and total_matches > maximum_count:
         return CheckResult(
-            False, f"Matched {total_matches} DERPrograms against criteria. Expected at most {maximum_count}"
+            False,
+            f"Matched {total_matches} DERPrograms against criteria. Expected at most {maximum_count}",
         )
 
     return CheckResult(True, None)

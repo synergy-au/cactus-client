@@ -1,35 +1,26 @@
-[tool.black]
-line-length = 120
 
 [tool.pytest.ini_options]
 pythonpath = ["src/"]
 testpaths = "tests"
 
-[tool.isort]
-profile = "black"
-
 [tool.bandit]
 exclude_dirs = ["tests"]
 
-[tool.mypy]
-exclude = ["tests", "build"]
-python_version = "3.12"
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_calls = true
-disallow_untyped_decorators = true
-disallow_untyped_defs = true
-namespace_packages = true
-warn_redundant_casts = true
-warn_unused_ignores = true
 
-[[tool.mypy.overrides]]
-module = ["apluggy", "apluggy.*"]
-ignore_missing_imports = true
+[tool.ruff]
+line-length = 120
 
-[[tool.mypy.overrides]]
-module = ["cactus_client.admin", "cactus_client.admin.*"]
-disallow_untyped_decorators = false
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "S", "C90", "B", "UP", "ANN", "N"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "ANN", "N"]
+
+[tool.ty.src]
+include = ["src"]
 
 
 [build-system]
@@ -41,9 +32,9 @@ name = "cactus_client"
 dynamic = ["version", "readme"]
 description = "Tools for evaluating a CSIP Aus server implementation via a virtual client"
 dependencies = [
-    "cactus-test-definitions==1.10.4",
+    "cactus-test-definitions>=1.13.2",
     "cactus-schema>=0.0.11",
-    "envoy_schema @ git+https://github.com/synergy-au/envoy-schema.git@v0.31.1-storage.0.6.0",
+    "envoy_schema @ git+https://github.com/synergy-au/envoy-schema.git@v2.1.0-storage.0.8.0",
     "rich>=14.1.0,<15",
     "treelib>=1.8.0,<2",
     "aiohttp>=3.11.12,<4",
@@ -63,12 +54,13 @@ dev = [
     "coverage",
     "flake8",
     "flake8-bugbear",
-    "mypy",
+    "ruff",
+    "ty",
     "types-PyYAML",
     "lxml-stubs",
     "types-reportlab",
 ]
-test = ["assertical", "pytest", "pytest-aiohttp", "freezegun", "cryptography"]
+test = ["assertical>=0.4.0", "pytest", "pytest-aiohttp", "freezegun", "cryptography"]
 
 [tool.setuptools.package-data]
 "cactus_client" = ["py.typed", "**/*.xsd"]
