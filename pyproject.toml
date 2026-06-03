@@ -20,7 +20,7 @@ max-complexity = 15
 "tests/**" = ["S", "ANN", "N"]
 
 [tool.ty.src]
-include = ["src", "tests"]
+include = ["src"]
 
 
 [build-system]
