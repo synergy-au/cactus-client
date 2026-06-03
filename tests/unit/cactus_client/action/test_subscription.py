@@ -394,7 +394,7 @@ async def test_collect_and_validate_notification(
         seed=202,
         generate_relationships=True,
         subscribedResource="/edev",
-        subscriptionURI="/sub1",
+        subscriptionURI="https://example.com/sub1",
         newResourceURI=None,
         status=NotificationStatus.SUBSCRIPTION_CANCELLED_NO_INFO if is_cancel else NotificationStatus.DEFAULT,
     )
