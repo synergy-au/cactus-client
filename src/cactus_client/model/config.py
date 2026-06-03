@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import yaml
 from cactus_test_definitions.server.test_procedures import ClientType, TestProcedureId
 from dataclass_wizard import YAMLWizard
 
-from cactus_client.error import ConfigException
+from cactus_client.error import ConfigError
 
 CONFIG_FILE_NAME = Path(".cactus.yaml")  # Name of the config
 
@@ -14,7 +13,7 @@ CONFIG_CWD = Path(".") / CONFIG_FILE_NAME
 CONFIG_HOME = Path.home() / CONFIG_FILE_NAME
 
 
-def strenum_representer(dumper: yaml.Dumper, data: Any) -> yaml.ScalarNode:
+def strenum_representer(dumper: yaml.Dumper, data: object) -> yaml.ScalarNode:
     return dumper.represent_scalar("tag:yaml.org,2002:str", str(data))
 
 
@@ -60,8 +59,10 @@ class ClientConfig:
     lfdi: str  # Current 2030.5 LFDI that will be used for registering an EndDevice for this client
     sfdi: int  # Current 2030.5 SFDI that will be used for registering an EndDevice for this client
     pen: int  # Private Enterprise Number that this client will utilise
-    pin: int  # Registration PIN that this client will treat as "valid"
+    pin: int  # Registration PIN that this client will treat as "valid" (6-digit SEP2 form, includes checksum)
     max_watts: int  # How many watts will be registered by this client (eg setMaxW rtgMaxW) with the utility server
+    nmi: str = "41020000002"  # Any valid NMI for ConnectionPoint registration
+    nmi_2: str = "41020000026"  # Any other valid nmi for tests that update a ConnectionPoint
     user_agent: str | None = None  # What User-Agent header should be sent by this client (if any)
 
 
@@ -78,8 +79,8 @@ class RunConfig:
 
 
 @dataclass(frozen=True)
-class GlobalConfig(YAMLWizard):  # type: ignore
-    output_dir: str | None = None  # Directory where all outputs will be dumped
+class GlobalConfig(YAMLWizard):
+    output_dir: Path | str | None = None  # Directory where all outputs will be dumped
     server: ServerConfig | None = None  # The current server configuration
     clients: list[ClientConfig] | None = None  # All possible clients that have been previously configured
     runner: AutoRunConfig | None = None  # Optional config for the autorun cli
@@ -111,7 +112,7 @@ class GlobalConfig(YAMLWizard):  # type: ignore
 
 
 def resolve_config_path() -> Path:
-    """Attempts to resolve a config file path for the global config (or raises ConfigException on failure)"""
+    """Attempts to resolve a config file path for the global config (or raises ConfigError on failure)"""
 
     if Path.exists(CONFIG_CWD):
         return CONFIG_CWD
@@ -119,10 +120,10 @@ def resolve_config_path() -> Path:
     if Path.exists(CONFIG_HOME):
         return CONFIG_HOME
 
-    raise ConfigException(f"Couldn't find {CONFIG_FILE_NAME} in the current working dir / home dir.")
+    raise ConfigError(f"Couldn't find {CONFIG_FILE_NAME} in the current working dir / home dir.")
 
 
-def load_config(config_file_path_override: str | None) -> tuple[GlobalConfig, Path]:
+def load_config(config_file_path_override: Path | str | None) -> tuple[GlobalConfig, Path]:
     """Main configuration entrypoint - if config_file_path_override is specified it will be used, otherwise local/home
     default locations will be checked.
 
@@ -136,9 +137,9 @@ def load_config(config_file_path_override: str | None) -> tuple[GlobalConfig, Pa
     try:
         config = GlobalConfig.from_yaml_file(cfg_path)
     except Exception as exc:
-        raise ConfigException(f"Error reading config {exc}")
+        raise ConfigError(f"Error reading config {exc}") from exc
 
     if not isinstance(config, GlobalConfig):
-        raise ConfigException(f"Received an invalid type for config: {type(config)}. This is likely a corrupted file.")
+        raise ConfigError(f"Received an invalid type for config: {type(config)}. This is likely a corrupted file.")
 
     return config, cfg_path

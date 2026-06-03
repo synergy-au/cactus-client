@@ -11,7 +11,7 @@ from cactus_test_definitions.server.test_procedures import (
     TestProcedureId,
 )
 
-from cactus_client.error import NotificationException
+from cactus_client.error import NotificationError
 from cactus_client.model.config import ClientConfig, ServerConfig
 from cactus_client.model.execution import StepExecution, StepExecutionList
 from cactus_client.model.http import NotificationEndpoint
@@ -138,6 +138,12 @@ class AdminContext:
     dcap_path: str
     client_configs: dict[str, ClientConfig]  # alias → config
 
+    def client_config_for(self, client: str | None) -> ClientConfig:
+        """Returns the ClientConfig for the given client alias, or the first client if alias is None."""
+        if client is None:
+            return next(iter(self.client_configs.values()))
+        return self.client_configs[client]
+
 
 @dataclass
 class ExecutionContext:
@@ -199,10 +205,10 @@ class ExecutionContext:
     def notifications_context(self, step: StepExecution) -> NotificationsContext:
         """Convenience function for accessing the NotificationsContext for a specific step (based on client alias)
 
-        Can raise NotificationException if a notification uri isn't configured."""
+        Can raise NotificationError if a notification uri isn't configured."""
         client = self.clients_by_alias[step.client_resources_alias]
         if client.notifications is None:
-            raise NotificationException(
+            raise NotificationError(
                 f"No NotificationContext for client {step.client_resources_alias}."
                 + " Has a notification_uri been configured?"
             )

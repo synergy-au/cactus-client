@@ -1,15 +1,17 @@
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import replace
-from typing import AsyncIterator
 
 from cactus_client.action import execute_action
 from cactus_client.admin import get_plugin_manager
 from cactus_client.check import execute_checks
+from cactus_client.check.end_device import match_aggregator_end_device
 from cactus_client.check.sep2 import is_invalid_resource
 from cactus_client.model.context import ExecutionContext
 from cactus_client.model.execution import ActionResult, ExecutionResult, StepExecution
+from cactus_client.model.parameter import resolve_variable_expressions_from_parameters
 from cactus_client.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -20,8 +22,9 @@ def validate_all_resources(context: ExecutionContext) -> None:
     warnings"""
     server_pen = context.server_config.pen
     for client_context in context.clients_by_alias.values():
+        aggregator_edev = match_aggregator_end_device(client_context.discovered_resources, client_context.client_config)
         for sr in client_context.discovered_resources.resources():
-            error = is_invalid_resource(sr, server_pen)
+            error = is_invalid_resource(sr, server_pen, aggregator_edev)
             if error:
                 context.warnings.log_stored_resource_warning(sr, error)
 
@@ -74,23 +77,29 @@ async def execute_for_context(context: ExecutionContext) -> ExecutionResult:
 
     logger.info("[admin-instruction] test=%s started", context.test_procedure_id)
     result = await _execute_steps(context)
-    logger.info("[admin-instruction] test=%s finished completed=%s", context.test_procedure_id, result.completed)
+    logger.info(
+        "[admin-instruction] test=%s finished completed=%s",
+        context.test_procedure_id,
+        result.completed,
+    )
     return result
 
 
 async def _fire_admin_instructions(context: ExecutionContext, current_step: StepExecution) -> None:
     """Fire each admin instruction for the step via the plugin manager, logging unhandled instructions."""
     pm = get_plugin_manager()
+    admin_context = context.to_admin_context()
     for instr in current_step.source.admin_instructions or []:
+        client_config = admin_context.client_config_for(instr.client)
+        resolved_params = await resolve_variable_expressions_from_parameters(client_config, instr.parameters)
+        instr = replace(instr, parameters=resolved_params)
         logger.info(
             "[admin-instruction] step=%s type=%s params=%s",
             current_step.source.id,
             instr.type,
             instr.parameters,
         )
-        results = await pm.ahook.admin_instruction(
-            instruction=instr, step=current_step, context=context.to_admin_context()
-        )
+        results = await pm.ahook.admin_instruction(instruction=instr, step=current_step, context=admin_context)
         if not any(r is not None for r in results):
             logger.info(
                 "[admin-instruction] no plugin handled type=%s in step=%s",
@@ -102,7 +111,6 @@ async def _fire_admin_instructions(context: ExecutionContext, current_step: Step
 async def _execute_steps(context: ExecutionContext) -> ExecutionResult:
     """Inner execution loop extracted from execute_for_context to allow CancelledError handling at the top level."""
     while (upcoming_step := context.steps.peek_next_no_wait(now := utc_now())) is not None:
-
         # Sometimes the next step will have a "not before" time - in which case we delay until that time has passed
         # We do this via peeking so we can log the delay against that upcoming step without popping it off the queue
         delay_required = upcoming_step.executable_delay_required(now)

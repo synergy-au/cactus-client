@@ -1,4 +1,5 @@
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -62,7 +63,7 @@ def test_check_der_program_combinations_no_fsa(
     resource_store = context.discovered_resources(step)
 
     for i, primacy in enumerate(stored_programs):
-        derp = generate_class_instance(DERProgramResponse, primacy=primacy, href=f"/derp/{i+1}")
+        derp = generate_class_instance(DERProgramResponse, primacy=primacy, href=f"/derp/{i + 1}")
         resource_store.upsert_resource(CSIPAusResource.DERProgram, None, derp)
 
     # Act
@@ -95,9 +96,9 @@ def test_check_der_program_fsa_index_order_independence(
     # Arrange - Create FSAs and DERPrograms
     fsa_data = []
     for i in range(3):
-        fsa = generate_class_instance(FunctionSetAssignmentsResponse, href=f"/fsa/{i+1}")
-        derp_list = generate_class_instance(DERProgramListResponse, href=f"/fsa/{i+1}/derp")
-        derp = generate_class_instance(DERProgramResponse, primacy=1, href=f"/fsa/{i+1}/derp/1")
+        fsa = generate_class_instance(FunctionSetAssignmentsResponse, href=f"/fsa/{i + 1}")
+        derp_list = generate_class_instance(DERProgramListResponse, href=f"/fsa/{i + 1}/derp")
+        derp = generate_class_instance(DERProgramResponse, primacy=1, href=f"/fsa/{i + 1}/derp/1")
         fsa_data.append((fsa, derp_list, derp))
 
     # First context: add in order 0, 1, 2
@@ -152,11 +153,11 @@ def test_check_der_program_fsa_index_negatives(
     #              - DERP H (primacy 32)
     #              - DERP I (primacy 33)
     for i in range(3):
-        fsa = generate_class_instance(FunctionSetAssignmentsResponse, href=f"/fsa/{i+1}")
-        derp_list = generate_class_instance(DERProgramListResponse, href=f"/fsa/{i+1}/derp")
-        derp1 = generate_class_instance(DERProgramResponse, primacy=((i + 1) * 10) + 1, href=f"/fsa/{i+1}/derp/1")
-        derp2 = generate_class_instance(DERProgramResponse, primacy=((i + 1) * 10) + 2, href=f"/fsa/{i+1}/derp/2")
-        derp3 = generate_class_instance(DERProgramResponse, primacy=((i + 1) * 10) + 3, href=f"/fsa/{i+1}/derp/3")
+        fsa = generate_class_instance(FunctionSetAssignmentsResponse, href=f"/fsa/{i + 1}")
+        derp_list = generate_class_instance(DERProgramListResponse, href=f"/fsa/{i + 1}/derp")
+        derp1 = generate_class_instance(DERProgramResponse, primacy=((i + 1) * 10) + 1, href=f"/fsa/{i + 1}/derp/1")
+        derp2 = generate_class_instance(DERProgramResponse, primacy=((i + 1) * 10) + 2, href=f"/fsa/{i + 1}/derp/2")
+        derp3 = generate_class_instance(DERProgramResponse, primacy=((i + 1) * 10) + 3, href=f"/fsa/{i + 1}/derp/3")
 
         fsa_sr = store.append_resource(CSIPAusResource.FunctionSetAssignments, None, fsa)
         derp_list_sr = store.append_resource(CSIPAusResource.DERProgramList, fsa_sr.id, derp_list)
@@ -166,43 +167,140 @@ def test_check_der_program_fsa_index_negatives(
 
     # Sanity check on fsa_index positive values
     assert_check_result(
-        check_der_program({"fsa_index": 0, "primacy": 11, "minimum_count": 1, "maximum_count": 1}, step, context), True
+        check_der_program(
+            {"fsa_index": 0, "primacy": 11, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        True,
     )
     assert_check_result(
-        check_der_program({"fsa_index": 1, "primacy": 11, "minimum_count": 1, "maximum_count": 1}, step, context), False
+        check_der_program(
+            {"fsa_index": 1, "primacy": 11, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        False,
     )
     assert_check_result(
-        check_der_program({"fsa_index": 1, "primacy": 22, "minimum_count": 1, "maximum_count": 1}, step, context), True
+        check_der_program(
+            {"fsa_index": 1, "primacy": 22, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        True,
     )
     assert_check_result(
-        check_der_program({"fsa_index": 2, "primacy": 11, "minimum_count": 1, "maximum_count": 1}, step, context), False
+        check_der_program(
+            {"fsa_index": 2, "primacy": 11, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        False,
     )
 
     # Do the negatives correctly pick the correct FSA's (and associated child DERPs) to search through
     assert_check_result(
-        check_der_program({"fsa_index": -1, "primacy": 11, "minimum_count": 1, "maximum_count": 1}, step, context),
+        check_der_program(
+            {"fsa_index": -1, "primacy": 11, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
         False,
     )
     assert_check_result(
-        check_der_program({"fsa_index": -2, "primacy": 11, "minimum_count": 1, "maximum_count": 1}, step, context),
+        check_der_program(
+            {"fsa_index": -2, "primacy": 11, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
         False,
     )
     assert_check_result(
-        check_der_program({"fsa_index": -3, "primacy": 11, "minimum_count": 1, "maximum_count": 1}, step, context), True
+        check_der_program(
+            {"fsa_index": -3, "primacy": 11, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        True,
     )
     assert_check_result(
-        check_der_program({"fsa_index": -3, "primacy": 21, "minimum_count": 1, "maximum_count": 1}, step, context),
+        check_der_program(
+            {"fsa_index": -3, "primacy": 21, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
         False,
     )
     assert_check_result(
-        check_der_program({"fsa_index": -2, "primacy": 21, "minimum_count": 1, "maximum_count": 1}, step, context), True
+        check_der_program(
+            {"fsa_index": -2, "primacy": 21, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        True,
     )
     assert_check_result(
-        check_der_program({"fsa_index": -1, "primacy": 21, "minimum_count": 1, "maximum_count": 1}, step, context),
+        check_der_program(
+            {"fsa_index": -1, "primacy": 21, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
         False,
     )
     assert_check_result(
-        check_der_program({"fsa_index": -1, "primacy": 31, "minimum_count": 1, "maximum_count": 1}, step, context),
+        check_der_program(
+            {"fsa_index": -1, "primacy": 31, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        True,
+    )
+
+
+def test_check_der_program_fsa_index_uuid_hrefs(
+    testing_contexts_factory: Callable[[ClientSession], tuple[ExecutionContext, StepExecution]],
+    assert_check_result: Callable[[CheckResult, bool], None],
+):
+    """fsa_index is ordered by DERProgram primacy, not href (UUID hrefs don't sort by primacy)"""
+    context, step = testing_contexts_factory(mock.Mock())
+    store = context.discovered_resources(step)
+
+    # '/fsa/123' sorts before '/fsa/321' alphabetically, but its DERProgram has higher primacy
+    for fsa_href, derp_href, primacy in [
+        ("/fsa/321", "/fsa/321/derp/1", 1),
+        ("/fsa/123", "/fsa/123/derp/1", 2),
+    ]:
+        fsa_sr = store.append_resource(
+            CSIPAusResource.FunctionSetAssignments,
+            None,
+            generate_class_instance(FunctionSetAssignmentsResponse, href=fsa_href),
+        )
+        derp_list_sr = store.append_resource(
+            CSIPAusResource.DERProgramList,
+            fsa_sr.id,
+            generate_class_instance(DERProgramListResponse, href=f"{fsa_href}/derp"),
+        )
+        store.append_resource(
+            CSIPAusResource.DERProgram,
+            derp_list_sr.id,
+            generate_class_instance(DERProgramResponse, primacy=primacy, href=derp_href),
+        )
+
+    assert_check_result(
+        check_der_program(
+            {"fsa_index": 0, "primacy": 1, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
+        True,
+    )
+    assert_check_result(
+        check_der_program(
+            {"fsa_index": 1, "primacy": 2, "minimum_count": 1, "maximum_count": 1},
+            step,
+            context,
+        ),
         True,
     )
 
@@ -218,16 +316,24 @@ def test_check_der_program_sub_id(
 
     # Setup store an initial sub tags
     derp1 = resource_store.upsert_resource(
-        CSIPAusResource.DERProgram, None, generate_class_instance(DERProgramResponse, seed=1)
+        CSIPAusResource.DERProgram,
+        None,
+        generate_class_instance(DERProgramResponse, seed=1),
     )
     derp2 = resource_store.upsert_resource(
-        CSIPAusResource.DERProgram, None, generate_class_instance(DERProgramResponse, seed=2)
+        CSIPAusResource.DERProgram,
+        None,
+        generate_class_instance(DERProgramResponse, seed=2),
     )
     resource_store.upsert_resource(
-        CSIPAusResource.DERProgram, None, generate_class_instance(DERProgramResponse, seed=3)
+        CSIPAusResource.DERProgram,
+        None,
+        generate_class_instance(DERProgramResponse, seed=3),
     )
     derp4 = resource_store.upsert_resource(
-        CSIPAusResource.DERProgram, None, generate_class_instance(DERProgramResponse, seed=4)
+        CSIPAusResource.DERProgram,
+        None,
+        generate_class_instance(DERProgramResponse, seed=4),
     )
 
     context.resource_annotations(step, derp1.id).add_tag(AnnotationNamespace.SUBSCRIPTION_RECEIVED, "sub1")
@@ -239,20 +345,26 @@ def test_check_der_program_sub_id(
 
     # Perform queries
     assert_check_result(
-        check_der_program({"minimum_count": 3, "maximum_count": 3, "sub_id": "sub1"}, step, context), True
+        check_der_program({"minimum_count": 3, "maximum_count": 3, "sub_id": "sub1"}, step, context),
+        True,
     )
     assert_check_result(
-        check_der_program({"minimum_count": 0, "maximum_count": 5, "sub_id": "sub1"}, step, context), True
+        check_der_program({"minimum_count": 0, "maximum_count": 5, "sub_id": "sub1"}, step, context),
+        True,
     )
     assert_check_result(
-        check_der_program({"minimum_count": 1, "maximum_count": 1, "sub_id": "sub1"}, step, context), False
+        check_der_program({"minimum_count": 1, "maximum_count": 1, "sub_id": "sub1"}, step, context),
+        False,
     )
     assert_check_result(
-        check_der_program({"minimum_count": 1, "maximum_count": 1, "sub_id": "sub2"}, step, context), True
+        check_der_program({"minimum_count": 1, "maximum_count": 1, "sub_id": "sub2"}, step, context),
+        True,
     )
     assert_check_result(
-        check_der_program({"minimum_count": 1, "maximum_count": 1, "sub_id": "sub3"}, step, context), False
+        check_der_program({"minimum_count": 1, "maximum_count": 1, "sub_id": "sub3"}, step, context),
+        False,
     )
     assert_check_result(
-        check_der_program({"minimum_count": 0, "maximum_count": 0, "sub_id": "sub3"}, step, context), True
+        check_der_program({"minimum_count": 0, "maximum_count": 0, "sub_id": "sub3"}, step, context),
+        True,
     )
