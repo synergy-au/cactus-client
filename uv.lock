@@ -246,7 +246,7 @@ requires-dist = [
     { name = "cryptography" },
     { name = "cryptography", marker = "extra == 'test'" },
     { name = "dataclass-wizard", specifier = ">=0.35.0,<1" },
-    { name = "envoy-schema", git = "https://github.com/synergy-au/envoy-schema.git?rev=v2.1.0-storage.0.9.0" },
+    { name = "envoy-schema", git = "https://github.com/synergy-au/envoy-schema.git?rev=v2.2.0-storage.0.10.0" },
     { name = "freezegun", marker = "extra == 'test'" },
     { name = "lxml-stubs", marker = "extra == 'dev'" },
     { name = "pydantic-xml", extras = ["lxml"], specifier = ">=2.11.7,<3" },
@@ -590,8 +590,8 @@ wheels = [
 
 [[package]]
 name = "envoy-schema"
-version = "2.1.0"
-source = { git = "https://github.com/synergy-au/envoy-schema.git?rev=v2.1.0-storage.0.9.0#ff0496b2899e2cab249d795ac2ef723b8cb91b85" }
+version = "2.2.0"
+source = { git = "https://github.com/synergy-au/envoy-schema.git?rev=v2.2.0-storage.0.10.0#4c475569b60ad9eb4a22b2fc9289ec7e36c14da1" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-xml", extra = ["lxml"] },

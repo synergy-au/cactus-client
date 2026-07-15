@@ -36,7 +36,7 @@ requires-python = ">= 3.12"
 dependencies = [
     "cactus-test-definitions>=1.14.6",
     "cactus-schema>=0.0.11",
-    "envoy_schema @ git+https://github.com/synergy-au/envoy-schema.git@v2.1.0-storage.0.9.0",
+    "envoy_schema @ git+https://github.com/synergy-au/envoy-schema.git@v2.2.0-storage.0.10.0",
     "rich>=14.1.0,<15",
     "treelib>=1.8.0,<2",
     "aiohttp>=3.11.12,<4",
