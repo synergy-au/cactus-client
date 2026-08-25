@@ -16,6 +16,8 @@ from cactus_client.results.common import (
     context_relative_time,
 )
 
+SKIP_COLOR = "dark_orange"  # Distinct from green (success), red (failure) and yellow (not executed)
+
 
 def style_str(success: bool, content: object) -> str:
     color = "green" if success else "red"
@@ -27,12 +29,13 @@ def render_console(  # noqa: C901
     context: ExecutionContext,
     results: ResultsEvaluation,
     output_manager: RunOutputManager,
+    strict: bool = False,
 ) -> None:
     """Renders a "results report" to the console output"""
 
     exception_steps = [sr for sr in context.progress.all_results if sr.exc]
 
-    success = results.has_passed()
+    success = results.has_passed(strict=strict)
     success_color = "green" if success else "red"
 
     panel_items: list[RenderableType] = [
@@ -43,6 +46,17 @@ def render_console(  # noqa: C901
         f"[b]Output:[/b] {output_manager.run_output_dir.absolute()}",
         "",
     ]
+
+    if results.skips_applied:
+        panel_items.append(
+            Panel(
+                f"[b]{results.total_steps_skipped} step(s) were SKIPPED[/b] because an admin plugin could not"
+                " establish the required server state. Skips were enabled for this run"
+                " (--allow-skips) - this is NOT a clean compliance pass.",
+                style=SKIP_COLOR,
+            )
+        )
+        panel_items.append("")
 
     metadata_table = Table(show_header=False, expand=True)
     metadata_table.add_column(style="b")
@@ -55,6 +69,11 @@ def render_console(  # noqa: C901
             f"{results.total_steps_passed}/{results.total_steps} passed",
         ),
     )
+    if results.skips_applied:
+        metadata_table.add_row(
+            "Skipped",
+            f"[b {SKIP_COLOR}]{results.total_steps_skipped}[/b {SKIP_COLOR}]",
+        )
     metadata_table.add_row("Warnings", style_str(results.no_warnings, f"[b]{results.total_warnings}[/b]"))
     metadata_table.add_row(
         "XSD Errors",
@@ -68,14 +87,25 @@ def render_console(  # noqa: C901
     server_table.add_column(style="b")
     server_table.add_column()
     server_table.add_row("dcap", context.server_config.device_capability_uri)
-    server_table.add_row("verify", str(context.server_config.verify_ssl))
+    server_table.add_row("verify ssl", str(context.server_config.verify_ssl))
+    server_table.add_row("verify host name", str(context.server_config.verify_host_name))
+    server_table.add_row("serca pem file", str(context.server_config.serca_pem_file))
+    server_table.add_row("notification uri", str(context.server_config.notification_uri))
+    server_table.add_row("pen", str(context.server_config.pen))
+    server_table.add_row("refetch delay ms", str(context.server_config.refetch_delay_ms))
     panel_items.append(server_table)
 
     client_table = Table(title="Client(s)", title_justify="left", show_header=False, expand=True)
     client_table.add_column(style="b")
     client_table.add_column()
     for client_alias, client in sorted(context.clients_by_alias.items()):
-        client_table.add_row(f"{client_alias}", client.client_config.lfdi)
+        client_table.add_row("alias", client_alias)
+        client_table.add_row("type", str(client.client_config.type))
+        client_table.add_row("lfdi", client.client_config.lfdi)
+        client_table.add_row("sfdi", str(client.client_config.sfdi))
+        client_table.add_row("pen", str(client.client_config.pen))
+        client_table.add_row("max watts", str(client.client_config.max_watts))
+        client_table.add_section()
     panel_items.append(client_table)
 
     if context.warnings.warnings:
@@ -96,7 +126,9 @@ def render_console(  # noqa: C901
         progress = context.progress.progress_by_step_id.get(step.id, None)
 
         # "Header" row
-        if progress is None or not progress.step_execution_completions:
+        if progress is not None and progress.result is not None and progress.result.is_skipped():
+            steps_table.add_row(step.id, f"Skipped: {progress.result.skip_reason}", style=f"b {SKIP_COLOR}")
+        elif progress is None or not progress.step_execution_completions:
             steps_table.add_row(step.id, "Not Executed", style="b yellow")
         elif progress.result and progress.result.is_passed():
             steps_table.add_row(step.id, "Success", style="b green")

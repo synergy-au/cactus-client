@@ -66,6 +66,20 @@ def add_sub_commands(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Treat warnings as failures. Overrides runner.strict from config.",
     )
+    autorun_parser.add_argument(
+        "--allow-skips",
+        required=False,
+        action="store_true",
+        default=None,
+        help="Permit admin plugins to waive individual steps. Overrides runner.allow_skips from config.",
+    )
+    autorun_parser.add_argument(
+        "--quiet",
+        required=False,
+        action="store_true",
+        default=None,
+        help="Only print the full result panel for failed tests. Overrides runner.quiet from config.",
+    )
 
 
 def run_action(args: argparse.Namespace) -> None:
@@ -87,6 +101,11 @@ def run_action(args: argparse.Namespace) -> None:
         )
         sys.exit(1)
 
+    validation_error = global_config.get_validation_error()
+    if validation_error is not None:
+        console.print(f"Invalid CACTUS configuration: {validation_error}", style="red")
+        sys.exit(1)
+
     runner_cfg = global_config.runner
 
     # CLI args take precedence over persistent config; fall back to config values when not supplied
@@ -95,6 +114,8 @@ def run_action(args: argparse.Namespace) -> None:
     cli_exclude: list[str] | None = args.exclude or None
     cli_timeout: int | None = args.timeout
     cli_strict: bool | None = args.strict
+    cli_allow_skips: bool | None = args.allow_skips
+    cli_quiet: bool | None = args.quiet
 
     include = cli_include if cli_include is not None else (runner_cfg.include or None if runner_cfg else None)
     include_file = (
@@ -103,6 +124,8 @@ def run_action(args: argparse.Namespace) -> None:
     exclude = cli_exclude if cli_exclude is not None else (runner_cfg.exclude or None if runner_cfg else None)
     timeout = cli_timeout if cli_timeout is not None else (runner_cfg.timeout if runner_cfg else None)
     strict = cli_strict if cli_strict is not None else (runner_cfg.strict if runner_cfg else False)
+    allow_skips = cli_allow_skips if cli_allow_skips is not None else (runner_cfg.allow_skips if runner_cfg else False)
+    quiet = cli_quiet if cli_quiet is not None else (runner_cfg.quiet if runner_cfg else False)
 
     headless: bool = bool(args.headless)
 
@@ -116,6 +139,8 @@ def run_action(args: argparse.Namespace) -> None:
                 headless=headless,
                 timeout=timeout,
                 strict=strict,
+                allow_skips=allow_skips,
+                quiet=quiet,
             )
         )
     except ConfigError as exc:
