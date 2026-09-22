@@ -34,7 +34,7 @@ dynamic = ["version", "readme"]
 description = "Tools for evaluating a CSIP Aus server implementation via a virtual client"
 requires-python = ">= 3.12"
 dependencies = [
-    "cactus-test-definitions>=1.15.0",
+    "cactus-test-definitions>=1.15.0,<1.16.0",
     "cactus-schema>=1.3.2",
     "envoy_schema @ git+https://github.com/synergy-au/envoy-schema.git@v2.5.0-storage.0.10.0",
     "rich>=14.1.0,<15",
@@ -58,6 +58,7 @@ dev = [
     "types-PyYAML",
     "lxml-stubs",
     "types-reportlab",
+    "twine",
 ]
 test = ["assertical>=0.4.0", "pytest", "pytest-aiohttp", "freezegun", "cryptography"]
 
