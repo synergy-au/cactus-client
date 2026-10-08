@@ -54,6 +54,7 @@ def add_sub_commands(subparsers: argparse._SubParsersAction) -> None:
     run_parser.add_argument(
         "--refetch-delay-ms",
         required=False,
+        type=int,
         metavar="MILLISECONDS",
         help=(
             "Optional delay on GET request after a POST or PUT (ms)."
