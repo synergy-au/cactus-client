@@ -35,3 +35,30 @@ def test_run_refetch_delay_ms_rejects_negative_values(monkeypatch: pytest.Monkey
     """Negative millisecond values should fail fast during CLI parsing."""
     with pytest.raises(SystemExit):
         _build_run_parser(monkeypatch).parse_args(["run", "--refetch-delay-ms", "-1", "procedure-id", "client-a"])
+
+
+def test_run_action_uses_active_csip_aus_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ensure the active csipaus version is being used."""
+    parser = _build_run_parser(monkeypatch)
+
+    from cactus_client.cli import run
+    from cactus_client.constants import ACTIVE_CSIP_AUS_VERSION
+    from cactus_client.model.config import GlobalConfig, RunConfig
+
+    global_config = GlobalConfig()
+    versions_used: list[str] = []
+
+    async def fake_run_entrypoint(global_config: GlobalConfig, run_config: RunConfig) -> bool:
+        versions_used.append(run_config.csip_aus_version)
+        return True
+
+    monkeypatch.setattr(run, "load_config", lambda _: (global_config, None))
+    monkeypatch.setattr(GlobalConfig, "get_validation_error", lambda _: None)
+    monkeypatch.setattr(run, "run_entrypoint", fake_run_entrypoint)
+    args = parser.parse_args(["run", "S-ALL-01", "client-a"])
+
+    with pytest.raises(SystemExit) as exc:
+        run.run_action(args)
+
+    assert exc.value.code == 0
+    assert versions_used == [ACTIVE_CSIP_AUS_VERSION.value]
