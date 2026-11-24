@@ -10,7 +10,7 @@ from cactus_test_definitions import CSIPAusVersion
 from envoy_schema.server.schema.sep2.error import ErrorResponse
 from envoy_schema.server.schema.sep2.identification import List, Resource, SubscribableList
 
-from cactus_client.constants import ACTIVE_CSIP_AUS_VERSION, CSIPAUS_WELL_KNOWN_PATH, MIME_TYPE_JSON, MIME_TYPE_SEP2
+from cactus_client.constants import CSIPAUS_WELL_KNOWN_PATH, MIME_TYPE_JSON, MIME_TYPE_SEP2
 from cactus_client.error import CactusClientError, RequestError
 from cactus_client.model.context import ExecutionContext
 from cactus_client.model.execution import StepExecution
@@ -32,9 +32,6 @@ def _csipaus_version_to_media_type_parameter(version: CSIPAusVersion) -> str:
     return version.value
 
 
-ACTIVE_CSIP_AUS_MEDIA_TYPE_VERSION = _csipaus_version_to_media_type_parameter(ACTIVE_CSIP_AUS_VERSION)
-
-
 @dataclass(frozen=True, slots=True)
 class AcceptVersion:
     csip_aus_version: str  # eg v1.3 (not a full CSIP-AUS version XMLNS)
@@ -47,10 +44,6 @@ class AcceptVersion:
             return f"{MIME_TYPE_SEP2};csipaus={self.csip_aus_version};q={self.quality_factor:.3f}".rstrip("0").rstrip(
                 "."
             )
-
-
-DEFAULT_ACCEPT_VERSIONS = [AcceptVersion(csip_aus_version=ACTIVE_CSIP_AUS_MEDIA_TYPE_VERSION, quality_factor=None)]
-CONTENT_TYPE = AcceptVersion(ACTIVE_CSIP_AUS_MEDIA_TYPE_VERSION, quality_factor=None).to_accept_header()
 
 
 def resource_to_sep2_xml(resource: Resource) -> str:
@@ -101,7 +94,7 @@ async def request_for_step(
     method: HTTPMethod,
     sep2_xml_body: str | None = None,
     accept_versions: list[AcceptVersion] | None = None,
-    xml_validation_version: CSIPAusVersion = ACTIVE_CSIP_AUS_VERSION,
+    xml_validation_version: CSIPAusVersion | None = None,
 ) -> ServerResponse:
     """Makes a request to the CSIP-Aus server (for the current context) and endpoint - returns a raw parsed response and
     logs the actions in the various context trackers. Raises a RequestError on connection failure.
@@ -109,9 +102,16 @@ async def request_for_step(
     Retries up to 3 times on 429 responses with delays of 5, 15, 30 seconds."""
     await context.progress.add_log(step, f"Requesting {method} {path}")
 
+    target_version = context.run_config.csip_aus_version
+    default_media_type = AcceptVersion(
+        csip_aus_version=_csipaus_version_to_media_type_parameter(target_version),
+        quality_factor=None,
+    ).to_accept_header()
+    validation_version = xml_validation_version or target_version
+
     # The Accept header is dynamic but never empty
     if accept_versions is None:
-        accept_header_value = accept_versions_to_accept_header(DEFAULT_ACCEPT_VERSIONS)
+        accept_header_value = default_media_type
     elif len(accept_versions) == 0:
         accept_header_value = MIME_TYPE_SEP2
     else:
@@ -120,14 +120,14 @@ async def request_for_step(
     # Start assembling request headers
     headers = {"Accept": accept_header_value}
     if sep2_xml_body is not None:
-        headers["Content-Type"] = CONTENT_TYPE
+        headers["Content-Type"] = default_media_type
 
     user_agent = context.client_config(step).user_agent
     if user_agent:
         headers["User-Agent"] = user_agent
 
     response = await _single_request(
-        step, context, path, method, headers, sep2_xml_body, xml_validation_version=xml_validation_version
+        step, context, path, method, headers, sep2_xml_body, xml_validation_version=validation_version
     )
 
     for delay in RATE_LIMIT_RETRY_DELAYS:
@@ -136,7 +136,7 @@ async def request_for_step(
         await context.progress.add_log(step, f"Rate limited (429), retrying in {delay}s")
         await asyncio.sleep(delay)
         response = await _single_request(
-            step, context, path, method, headers, sep2_xml_body, xml_validation_version=xml_validation_version
+            step, context, path, method, headers, sep2_xml_body, xml_validation_version=validation_version
         )
 
     return response

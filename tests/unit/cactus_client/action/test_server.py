@@ -849,7 +849,7 @@ async def test_fetch_list_page(aiohttp_client, testing_contexts_factory):
     "accept_versions, expected_header",
     [
         ([], MIME_TYPE_SEP2),
-        (None, f"{MIME_TYPE_SEP2};csipaus=1.3-beta_storage"),
+        (None, f"{MIME_TYPE_SEP2};csipaus=v1.2"),
         (
             [AcceptVersion("v1.3", 1)],
             f"{MIME_TYPE_SEP2};csipaus=v1.3;q=1",
@@ -893,9 +893,18 @@ async def test_request_for_step_version_accept_headers(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "version, expected_parameter",
+    [
+        (CSIPAusVersion.RELEASE_1_2, "v1.2"),
+        (CSIPAusVersion.BETA_1_3_STORAGE, "1.3-beta_storage"),
+    ],
+)
 async def test_request_for_step_default_headers_use_media_type_version(
     aiohttp_client,
     testing_contexts_factory,
+    version: CSIPAusVersion,
+    expected_parameter: str,
 ):
     async with create_test_session(
         aiohttp_client,
@@ -908,6 +917,7 @@ async def test_request_for_step_default_headers_use_media_type_version(
         ],
     ) as session:
         execution_context, step_execution = testing_contexts_factory(session)
+        execution_context.run_config = replace(execution_context.run_config, csip_aus_version=version)
         response = await request_for_step(
             step_execution,
             execution_context,
@@ -916,7 +926,7 @@ async def test_request_for_step_default_headers_use_media_type_version(
             sep2_xml_body="<request />",
         )
 
-    expected_header = f"{MIME_TYPE_SEP2};csipaus=1.3-beta_storage"
+    expected_header = f"{MIME_TYPE_SEP2};csipaus={expected_parameter}"
     assert response.request.headers["Accept"] == expected_header
     assert response.request.headers["Content-Type"] == expected_header
 

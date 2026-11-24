@@ -151,6 +151,16 @@ cactus run S-ALL-01 myclient1
 | `-c PATH` | Override the config file location (defaults to `./.cactus.yaml` then `~/.cactus.yaml`). |
 | `--refetch-delay-ms MILLISECONDS` | Optional delay on GET request after a POST or PUT (ms). This will override any value provided to the server config. |
 
+#### Selecting the CSIP-AUS target
+
+By default, runs use the target version of the installed build. To override it for `cactus run` and `cactus autorun`, set the top-level `csip-aus-version` in `.cactus.yaml`:
+
+```yaml
+csip-aus-version: 1.3-beta_storage
+```
+
+Supported values are `v1.2`, `v1.3`, and `1.3-beta_storage`. The selected target controls test-procedure selection, request media types, and response XML validation.
+
 ### Running all tests automatically
 
 `cactus autorun` runs all (or a selected subset of) test procedures sequentially, assigning configured clients to each test automatically. It stops at the first failure.

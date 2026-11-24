@@ -114,7 +114,7 @@ def run_action(args: argparse.Namespace) -> None:
     run_config = RunConfig(
         test_procedure_id=TestProcedureId(test_id),
         client_ids=client_ids,
-        csip_aus_version=ACTIVE_CSIP_AUS_VERSION,
+        csip_aus_version=global_config.csip_aus_version or ACTIVE_CSIP_AUS_VERSION,
         headless=headless,
         timeout=timeout,
         strict=strict,

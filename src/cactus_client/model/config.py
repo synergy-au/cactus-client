@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from cactus_test_definitions import CSIPAusVersion
 from cactus_test_definitions.server.test_procedures import ClientType, TestProcedureId
 from dataclass_wizard import YAMLWizard
 
@@ -19,6 +20,7 @@ def strenum_representer(dumper: yaml.Dumper, data: object) -> yaml.ScalarNode:
 
 
 yaml.add_representer(ClientType, strenum_representer)
+yaml.add_representer(CSIPAusVersion, strenum_representer)
 
 
 @dataclass(frozen=True)
@@ -78,7 +80,7 @@ class RunConfig:
 
     test_procedure_id: TestProcedureId  # What test procedure is being run?
     client_ids: list[str]  # What clients are being
-    csip_aus_version: str  # What csip aus version of the tests are being evaluated? (Will be mapped to CSIPAusVersion)
+    csip_aus_version: CSIPAusVersion  # What CSIP-Aus version of the tests are being evaluated?
     headless: bool  # If set - don't run a terminal UI - just spit out logs and the final report
     timeout: int | None = None  # Optional timeout in seconds
     strict: bool = False  # If True, warnings are treated as failures
@@ -93,11 +95,16 @@ class GlobalConfig(YAMLWizard):
     server: ServerConfig | None = None  # The current server configuration
     clients: list[ClientConfig] | None = None  # All possible clients that have been previously configured
     runner: AutoRunConfig | None = None  # Optional config for the autorun cli
+    csip_aus_version: CSIPAusVersion | None = None  # Optional per-run target; defaults to the build target
 
     def get_validation_error(self) -> str | None:
         """Attempts to identify whether this configuration is fully defined (and therefore capable of running tests)
 
         Returns a human readable error on failure or None if the file is valid."""
+        if self.csip_aus_version is not None and not isinstance(self.csip_aus_version, CSIPAusVersion):
+            supported_versions = ", ".join(version.value for version in CSIPAusVersion)
+            return f"csip_aus_version must be one of: {supported_versions}."
+
         if not self.output_dir:
             return "output_dir is not defined. It should point to a directory that exists"
         output_dir = Path(self.output_dir)

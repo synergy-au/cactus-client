@@ -1,5 +1,6 @@
 import argparse
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -35,3 +36,29 @@ def test_run_refetch_delay_ms_rejects_negative_values(monkeypatch: pytest.Monkey
     """Negative millisecond values should fail fast during CLI parsing."""
     with pytest.raises(SystemExit):
         _build_run_parser(monkeypatch).parse_args(["run", "--refetch-delay-ms", "-1", "procedure-id", "client-a"])
+
+
+def test_run_action_uses_configured_csip_aus_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cactus_test_definitions import CSIPAusVersion
+
+    from cactus_client.cli import run
+    from cactus_client.model.config import GlobalConfig, RunConfig
+
+    parser = _build_run_parser(monkeypatch)
+    global_config = GlobalConfig(csip_aus_version=CSIPAusVersion.BETA_1_3_STORAGE)
+    versions_used: list[CSIPAusVersion] = []
+
+    async def fake_run_entrypoint(global_config: GlobalConfig, run_config: RunConfig) -> bool:
+        versions_used.append(run_config.csip_aus_version)
+        return True
+
+    monkeypatch.setattr(run, "load_config", lambda _: (global_config, Path(".cactus.yaml")))
+    monkeypatch.setattr(GlobalConfig, "get_validation_error", lambda self: None)
+    monkeypatch.setattr(run, "run_entrypoint", fake_run_entrypoint)
+    args = parser.parse_args(["run", "S-ALL-01", "client-a"])
+
+    with pytest.raises(SystemExit) as exc:
+        run.run_action(args)
+
+    assert exc.value.code == 0
+    assert versions_used == [CSIPAusVersion.BETA_1_3_STORAGE]

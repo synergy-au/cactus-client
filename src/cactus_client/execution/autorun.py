@@ -139,13 +139,14 @@ async def autorun_entrypoint(
     if not global_config.clients:
         raise ConfigError("No clients are configured.")
 
+    csip_aus_version = global_config.csip_aus_version or ACTIVE_CSIP_AUS_VERSION
     test_ids = resolve_test_list(include, include_file, exclude)
     records: list[AutorunRecord] = []
 
     for test_id in test_ids:
-        tp = get_test_procedure_for_version(ACTIVE_CSIP_AUS_VERSION, test_id)
+        tp = get_test_procedure_for_version(csip_aus_version, test_id)
         if tp is None:
-            reason = f"not applicable to CSIP-Aus {ACTIVE_CSIP_AUS_VERSION}"
+            reason = f"not applicable to CSIP-Aus {csip_aus_version}"
             logger.warning("Skipping %s: %s", test_id, reason)
             records.append(AutorunRecord(test_id=test_id, status=AutorunStatus.SKIPPED, note=reason))
             continue
@@ -161,7 +162,7 @@ async def autorun_entrypoint(
         run_config = RunConfig(
             test_procedure_id=test_id,
             client_ids=client_ids,
-            csip_aus_version=ACTIVE_CSIP_AUS_VERSION,
+            csip_aus_version=csip_aus_version,
             headless=headless,
             timeout=timeout,
             strict=strict,

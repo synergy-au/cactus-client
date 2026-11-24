@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from assertical.fake.generator import generate_class_instance
+from cactus_test_definitions import CSIPAusVersion
 from cactus_test_definitions.server.test_procedures import ClientType
 
 from cactus_client.error import ConfigError
@@ -45,6 +46,13 @@ server:
   verify_ssl: true
 """,
             GlobalConfig("/foo/bar", ServerConfig("http://example.com", True), None),
+        ),
+        (
+            """
+output_dir: /foo/bar
+csip-aus-version: 1.3-beta_storage
+""",
+            GlobalConfig("/foo/bar", None, None, csip_aus_version=CSIPAusVersion.BETA_1_3_STORAGE),
         ),
         (
             """

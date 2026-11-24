@@ -11,7 +11,7 @@ from aiohttp import ClientSession, TCPConnector
 from cactus_test_definitions.server.test_procedures import TestProcedure
 
 from cactus_client.action.notifications import safely_delete_all_notification_webhooks
-from cactus_client.constants import ACTIVE_CSIP_AUS_VERSION, CACTUS_TEST_DEFINITIONS_VERSION
+from cactus_client.constants import CACTUS_TEST_DEFINITIONS_VERSION
 from cactus_client.error import ConfigError
 from cactus_client.model.config import (
     ClientConfig,
@@ -196,7 +196,7 @@ async def build_execution_context(user_config: GlobalConfig, run_config: RunConf
 
     tp_id = run_config.test_procedure_id
 
-    tp = get_test_procedure_for_version(ACTIVE_CSIP_AUS_VERSION, tp_id)
+    tp = get_test_procedure_for_version(run_config.csip_aus_version, tp_id)
     if tp is None:
         logger.error(
             f"Unable to load Test Procedure ID '{tp_id}' with test definitions {CACTUS_TEST_DEFINITIONS_VERSION}",
