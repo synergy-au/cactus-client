@@ -26,6 +26,15 @@ AnyListType = TypeVar("AnyListType", bound=List | SubscribableList)
 AnyType = TypeVar("AnyType")
 
 
+def _csipaus_version_to_media_type_parameter(version: CSIPAusVersion) -> str:
+    if version == CSIPAusVersion.BETA_1_3_STORAGE:
+        return "1.3-beta_storage"
+    return version.value
+
+
+ACTIVE_CSIP_AUS_MEDIA_TYPE_VERSION = _csipaus_version_to_media_type_parameter(ACTIVE_CSIP_AUS_VERSION)
+
+
 @dataclass(frozen=True, slots=True)
 class AcceptVersion:
     csip_aus_version: str  # eg v1.3 (not a full CSIP-AUS version XMLNS)
@@ -40,8 +49,8 @@ class AcceptVersion:
             )
 
 
-DEFAULT_ACCEPT_VERSIONS = [AcceptVersion(csip_aus_version=str(ACTIVE_CSIP_AUS_VERSION), quality_factor=None)]
-CONTENT_TYPE = AcceptVersion(ACTIVE_CSIP_AUS_VERSION, quality_factor=None).to_accept_header()
+DEFAULT_ACCEPT_VERSIONS = [AcceptVersion(csip_aus_version=ACTIVE_CSIP_AUS_MEDIA_TYPE_VERSION, quality_factor=None)]
+CONTENT_TYPE = AcceptVersion(ACTIVE_CSIP_AUS_MEDIA_TYPE_VERSION, quality_factor=None).to_accept_header()
 
 
 def resource_to_sep2_xml(resource: Resource) -> str:
