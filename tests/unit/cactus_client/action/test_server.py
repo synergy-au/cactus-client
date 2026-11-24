@@ -12,6 +12,7 @@ from aiohttp import ClientSession, web
 from aiohttp.test_utils import TestClient
 from assertical.asserts.type import assert_list_type
 from assertical.fake.generator import generate_class_instance
+from cactus_test_definitions import CSIPAusVersion
 from envoy_schema.server.schema.sep2.device_capability import DeviceCapabilityResponse
 from envoy_schema.server.schema.sep2.end_device import (
     EndDeviceListResponse,
@@ -24,6 +25,7 @@ from envoy_schema.server.schema.sep2.metering_mirror import MirrorUsagePointList
 from cactus_client.action.server import (
     RATE_LIMIT_RETRY_DELAYS,
     AcceptVersion,
+    _csipaus_version_to_media_type_parameter,
     client_error_or_empty_list_request_for_step,
     client_error_request_for_step,
     delete_and_check_resource_for_step,
@@ -36,6 +38,18 @@ from cactus_client.action.server import (
 )
 from cactus_client.constants import MIME_TYPE_SEP2
 from cactus_client.error import CactusClientError, RequestError
+
+
+@pytest.mark.parametrize(
+    "version, expected_parameter",
+    [
+        (CSIPAusVersion.RELEASE_1_2, "v1.2"),
+        (CSIPAusVersion.RELEASE_1_3, "v1.3"),
+        (CSIPAusVersion.BETA_1_3_STORAGE, "1.3-beta_storage"),
+    ],
+)
+def test_csipaus_version_to_media_type_parameter(version: CSIPAusVersion, expected_parameter: str):
+    assert _csipaus_version_to_media_type_parameter(version) == expected_parameter
 
 
 @dataclass
@@ -876,6 +890,35 @@ async def test_request_for_step_version_accept_headers(
 
     assert response.status == HTTPStatus.OK
     assert response.request.headers["Accept"] == expected_header
+
+
+@pytest.mark.asyncio
+async def test_request_for_step_default_headers_use_media_type_version(
+    aiohttp_client,
+    testing_contexts_factory,
+):
+    async with create_test_session(
+        aiohttp_client,
+        [
+            TestingAppRoute(
+                HTTPMethod.POST,
+                "/foo/bar",
+                [RouteBehaviour.xml(HTTPStatus.OK, "dcap.xml")],
+            )
+        ],
+    ) as session:
+        execution_context, step_execution = testing_contexts_factory(session)
+        response = await request_for_step(
+            step_execution,
+            execution_context,
+            "/foo/bar",
+            HTTPMethod.POST,
+            sep2_xml_body="<request />",
+        )
+
+    expected_header = f"{MIME_TYPE_SEP2};csipaus=1.3-beta_storage"
+    assert response.request.headers["Accept"] == expected_header
+    assert response.request.headers["Content-Type"] == expected_header
 
 
 @mock.patch("cactus_client.action.server.asyncio.sleep")
