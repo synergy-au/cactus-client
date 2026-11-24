@@ -835,7 +835,7 @@ async def test_fetch_list_page(aiohttp_client, testing_contexts_factory):
     "accept_versions, expected_header",
     [
         ([], MIME_TYPE_SEP2),
-        (None, f"{MIME_TYPE_SEP2};csipaus=v1.3"),
+        (None, f"{MIME_TYPE_SEP2};csipaus=1.3-beta_storage"),
         (
             [AcceptVersion("v1.3", 1)],
             f"{MIME_TYPE_SEP2};csipaus=v1.3;q=1",

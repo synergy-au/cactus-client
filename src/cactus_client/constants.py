@@ -17,4 +17,4 @@ CSIPAUS_WELL_KNOWN_PATH = "/.well-known/csipaus"
 MAX_TIME_DRIFT_SECONDS = 5
 
 # What is the CSIP-AUS version that this build is targetting
-ACTIVE_CSIP_AUS_VERSION = CSIPAusVersion.RELEASE_1_3
+ACTIVE_CSIP_AUS_VERSION = CSIPAusVersion.BETA_1_3_STORAGE
