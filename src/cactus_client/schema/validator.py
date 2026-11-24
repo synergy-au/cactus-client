@@ -10,6 +10,7 @@ from lxml import etree
 
 import cactus_client.schema.csipaus12 as v12
 import cactus_client.schema.csipaus13 as v13
+import cactus_client.schema.csipaus13_beta_storage as v13_beta_storage
 from cactus_client.constants import ACTIVE_CSIP_AUS_VERSION
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,8 @@ def csip_aus_schema(version: CSIPAusVersion) -> etree.XMLSchema:
             schema_dir = Path(v12.__file__).parent
         case CSIPAusVersion.RELEASE_1_3:
             schema_dir = Path(v13.__file__).parent
+        case CSIPAusVersion.BETA_1_3_STORAGE:
+            schema_dir = Path(v13_beta_storage.__file__).parent
         case _:
             raise ValueError(f"No XSD for {version}")
 

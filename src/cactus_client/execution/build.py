@@ -31,7 +31,7 @@ from cactus_client.model.progress import (
     WarningTracker,
 )
 from cactus_client.model.resource import CSIPAusResourceTree, ResourceStore
-from cactus_client.procedures import get_test_procedure_for_version
+from cactus_client.procedures import get_test_procedure_for_version, procedure_supports_version
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ async def build_execution_context(user_config: GlobalConfig, run_config: RunConf
             f"Test Procedure ID '{tp_id}' isn't recognised for version {CACTUS_TEST_DEFINITIONS_VERSION}."
         )
 
-    if run_config.csip_aus_version not in tp.target_versions:
+    if not procedure_supports_version(tp, run_config.csip_aus_version):
         raise ConfigError(f"The requested version {run_config.csip_aus_version} is not supported by {tp_id}")
 
     if not user_config.output_dir:

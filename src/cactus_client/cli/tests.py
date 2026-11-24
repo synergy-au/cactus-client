@@ -6,7 +6,11 @@ from rich.console import Console
 from rich.table import Table
 
 from cactus_client.constants import ACTIVE_CSIP_AUS_VERSION
-from cactus_client.procedures import get_test_procedure_for_version, get_test_procedures_for_version
+from cactus_client.procedures import (
+    get_test_procedure_for_version,
+    get_test_procedure_supported_versions,
+    get_test_procedures_for_version,
+)
 
 COMMAND_NAME = "tests"
 
@@ -59,7 +63,7 @@ def print_test(console: Console, tp_id: str) -> None:
     metadata_table.add_row("Description", tp.description)
     metadata_table.add_row("Category", tp.category)
     metadata_table.add_row("Classes", ", ".join(tp.classes) if tp.classes else "[b]None[/b]")
-    metadata_table.add_row("Target Versions", ", ".join(tp.target_versions))
+    metadata_table.add_row("Target Versions", ", ".join(get_test_procedure_supported_versions(tp)))
 
     for idx, client in enumerate(tp.preconditions.required_clients):
         metadata_table.add_row(

@@ -505,7 +505,7 @@ async def test_action_well_known_discovery(
 {
     "supportedSchemaVersions": {
         "https://csipaus.org/ns/v1.2": {"dcap": ["/dcap"]},
-        "https://csipaus.org/ns/v1.3": {"dcap": ["/v13/dcap", "https://example.com/dcap"]}
+        "https://csipaus.org/ns/v1.3-beta/storage": {"dcap": ["/v13/dcap", "https://example.com/dcap"]}
     }
 }"""
 
@@ -519,7 +519,7 @@ async def test_action_well_known_discovery(
     assert context.discovered_well_known(step) == WellKnown(
         supported_schema_versions={
             "https://csipaus.org/ns/v1.2": WellKnownSchemaVersion(dcap=["/dcap"]),
-            "https://csipaus.org/ns/v1.3": WellKnownSchemaVersion(dcap=["/v13/dcap", "https://example.com/dcap"]),
+            "https://csipaus.org/ns/v1.3-beta/storage": WellKnownSchemaVersion(dcap=["/v13/dcap", "https://example.com/dcap"]),
         }
     )
     assert len(context.warnings.warnings) == 0

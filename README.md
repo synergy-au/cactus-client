@@ -15,6 +15,7 @@ To see the version you have installed `cactus -v`
 | -------------------- | ---------- | ----------------- |
 | `v1.1a` `v1.2` | `main` | `v1.*` |
 | `v1.3` | `csipaus.org/ns/v1.3` | `v2.*` |
+| `v1.3-beta/storage` | `csipaus.org/ns/v1.3-beta/storage` | `v2.*-storage.*` |
 
 ## Development
 

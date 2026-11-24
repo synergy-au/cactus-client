@@ -75,9 +75,14 @@ def generate_valid_config(
         ("http://notification.uri/path", "http://notification.uri/path"),
     ],
 )
+@pytest.mark.parametrize("csip_aus_version", [CSIPAusVersion.RELEASE_1_2, CSIPAusVersion.BETA_1_3_STORAGE])
 @pytest.mark.asyncio
 async def test_build_execution_context_s_all_01(
-    generate_testing_key_cert, notification_uri: str | None, notification_admin_uri: str | None, no_deprecation_warnings
+    generate_testing_key_cert,
+    notification_uri: str | None,
+    notification_admin_uri: str | None,
+    csip_aus_version: CSIPAusVersion,
+    no_deprecation_warnings,
 ):
     with TemporaryDirectory() as tempdirname:
         key_file = Path(tempdirname) / "my.key"
@@ -87,6 +92,7 @@ async def test_build_execution_context_s_all_01(
         expected_client_config, user_config, run_config = generate_valid_config(
             tempdirname, str(key_file), str(cert_file), None, notification_uri, notification_admin_uri
         )
+        run_config = replace(run_config, csip_aus_version=csip_aus_version)
 
         async with build_execution_context(user_config, run_config) as result:
             assert isinstance(result, ExecutionContext)
